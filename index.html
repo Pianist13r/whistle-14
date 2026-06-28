@@ -202,6 +202,17 @@
   .faq details.fold{margin:.55rem 0;padding:.1rem 1.2rem}
   .faq summary{font-size:1.05rem!important}
   @media (max-width:620px){.quickstart{grid-template-columns:1fr}.qs-side{border-left:0;padding-left:0;border-top:1px solid var(--line-soft);padding-top:1rem}}
+  .syncbar{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin:0 0 1.2rem;background:var(--teal-bg);border:1px solid #cfe5dd;border-radius:14px;padding:.7rem 1rem}
+  .sy-ic{font-size:1.15rem}
+  .sy-text{font-size:.86rem;color:var(--ink-soft);flex:1;min-width:200px}
+  .sy-text b{color:var(--teal-deep)}
+  #syncCode{font:inherit;font-size:.92rem;border:1px solid var(--line);border-radius:9px;padding:.4rem .7rem;background:#fff;color:var(--ink);outline:none;min-width:150px}
+  #syncCode:focus{border-color:var(--teal)}
+  #syncBtn{font:inherit;font-size:.88rem;font-weight:600;background:var(--teal);color:#fff;border:0;border-radius:9px;padding:.45rem 1rem;cursor:pointer}
+  #syncBtn:hover{background:var(--teal-deep)}
+  .sy-status{font-size:.82rem;color:var(--ink-faint);min-width:130px}
+  .sy-status.ok{color:var(--teal-deep)}
+  .sy-status.off{color:var(--accent-deep)}
   @media print{
     body{background:#fff}
     .topbar,.reset,.wave{display:none}
@@ -264,6 +275,14 @@
   </div>
 
   <nav class="daynav" aria-label="Навигация по дням"><span class="dn-lbl">Прыгнуть к дню:</span><span id="daynavBox"></span></nav>
+
+  <div class="syncbar">
+    <span class="sy-ic">🔄</span>
+    <div class="sy-text"><b>Синхронизация телефон ↔ компьютер.</b> Введи один секретный код на обоих устройствах — прогресс станет общим (хранится в облаке).</div>
+    <input id="syncCode" type="text" placeholder="секретный код" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="syncBtn">Включить</button>
+    <span class="sy-status" id="syncStatus"></span>
+  </div>
 
   <details class="fold" id="warmFold" open>
     <summary>Разминка и заминка — делай в начале и в конце каждого дня</summary>
@@ -630,7 +649,36 @@ document.getElementById('bonusIllos').innerHTML =
 
 /* start date + reset */
 const sd=document.getElementById('startDate'); sd.value=state.__start||''; sd.addEventListener('input',()=>{state.__start=sd.value;save();});
-document.getElementById('resetBtn').addEventListener('click',()=>{ if(confirm('Сбросить все галочки и дату старта?')){ state={}; save(); document.querySelectorAll('.checklist input').forEach(c=>c.checked=false); sd.value=''; DAYS.forEach(d=>refreshDay(d.n,(d.checklist||[]).length)); refreshBar(); refreshNav(); }});
+document.getElementById('resetBtn').addEventListener('click',()=>{ if(confirm('Сбросить все галочки и дату старта?')){ var _sc=state.__synccode; state={}; if(_sc)state.__synccode=_sc; save(); document.querySelectorAll('.checklist input').forEach(c=>c.checked=false); sd.value=''; DAYS.forEach(d=>refreshDay(d.n,(d.checklist||[]).length)); refreshBar(); refreshNav(); }});
+</script>
+<script>
+/* ===== Синхронизация прогресса через Firebase Realtime Database ===== */
+(function(){
+  const DB="https://whistle-sync-default-rtdb.firebaseio.com";
+  const CK="__synccode";
+  const ci=document.getElementById('syncCode'), btn=document.getElementById('syncBtn'), st=document.getElementById('syncStatus');
+  let timer=null;
+  const clean=c=>(c||'').trim().replace(/[.#$\[\]\/]/g,'_');
+  const code=()=>clean(state[CK]||'');
+  const url=c=>DB+'/w/'+encodeURIComponent(c)+'.json';
+  const set=(t,c)=>{ st.textContent=t; st.className='sy-status'+(c?' '+c:''); };
+  function localChecks(){ const o={}; for(const k in state){ if(/^d\d+c\d+$/.test(k)&&state[k]) o[k]=true; } return o; }
+  function applyUI(){ document.querySelectorAll('.checklist input').forEach(cb=>cb.checked=!!state[cb.id]); DAYS.forEach(d=>refreshDay(d.n,(d.checklist||[]).length)); refreshBar(); if(typeof refreshNav==='function')refreshNav(); if(sd)sd.value=state.__start||''; }
+  function setChecks(checks,start,t){ for(const k in state){ if(/^d\d+c\d+$/.test(k))delete state[k]; } const c=checks||{}; for(const k in c){ if(c[k])state[k]=true; } state.__start=start||''; state.__updatedAt=t; save(); applyUI(); }
+  async function put(c,body){ await fetch(url(c),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+  async function pushNow(){ const c=code(); if(!c)return; try{ await put(c,{checks:localChecks(),start:state.__start||'',updatedAt:state.__updatedAt||Date.now()}); set('синхронизировано ✓','ok'); }catch(e){ set('оффлайн — сохранено локально','off'); } }
+  async function pull(){ const c=code(); if(!c)return; try{ const cl=await (await fetch(url(c))).json(); const cT=(cl&&cl.updatedAt)||0, lT=state.__updatedAt||0; if(cl&&cT>lT){ setChecks(cl.checks,cl.start,cT); set('обновлено с другого устройства ✓','ok'); } else if(lT>cT){ await pushNow(); } else set('синхронизировано ✓','ok'); }catch(e){ set('оффлайн','off'); } }
+  function schedule(){ if(!code())return; state.__updatedAt=Date.now(); save(); set('сохраняю…'); clearTimeout(timer); timer=setTimeout(pushNow,1200); }
+  async function enable(){ const c=clean(ci.value); state[CK]=c; save(); ci.value=c; if(!c){ set('введи код'); return; } set('подключаю…'); try{ const cl=await (await fetch(url(c))).json(); const merged=Object.assign({},(cl&&cl.checks)||{},localChecks()); const start=state.__start||(cl&&cl.start)||''; setChecks(merged,start,Date.now()); await put(c,{checks:merged,start:start,updatedAt:state.__updatedAt}); set('подключено ✓ — открой этот же код на другом устройстве','ok'); }catch(e){ set('оффлайн — проверь интернет','off'); } }
+  document.querySelectorAll('.checklist input').forEach(cb=>cb.addEventListener('change',schedule));
+  if(sd)sd.addEventListener('input',schedule);
+  const rb=document.getElementById('resetBtn'); if(rb)rb.addEventListener('click',()=>setTimeout(()=>{ if(code()){ state.__updatedAt=Date.now(); save(); pushNow(); } },80));
+  btn.addEventListener('click',enable);
+  ci.addEventListener('keydown',e=>{ if(e.key==='Enter')enable(); });
+  window.addEventListener('focus',()=>{ if(code())pull(); });
+  window.addEventListener('online',()=>{ if(code())pull(); });
+  if(code()){ ci.value=code(); set('подключаю…'); pull(); } else set('введи один код на телефоне и компьютере');
+})();
 </script>
 </body>
 </html>
