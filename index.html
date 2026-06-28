@@ -291,6 +291,7 @@
   @media (max-width:560px){ .topbar .mark{display:none} .hero-txt{padding-top:46vw} }
   @media print{ .topbar,.reset,.cam,.dayflip,.drawer,.scrim{display:none} .day{display:block!important;break-inside:avoid;border:1px solid #999} }
 </style>
+<script src="art/diagrams.js"></script>
 </head>
 <body>
 <noscript><div style="background:#fbe9e0;border:1px solid #e3b9a8;color:#7a2b1a;padding:1rem 1.4rem;text-align:center;font-family:sans-serif">Для тренажёра (галочки, прогресс, картинки, навигация по дням) нужен включённый JavaScript. Включите JS и обновите страницу.</div></noscript>
@@ -630,6 +631,7 @@ function illoFig(key){ if(!key||!ILLOS[key]) return ''; const cap=ILLO_CAP[key]|
 function stepsList(arr){ return '<ol class="bsteps">'+(arr||[]).map(s=>`<li>${esc(s)}</li>`).join('')+'</ol>'; }
 
 /* warmup */
+if(window.ILLOS_OVERRIDE)Object.assign(ILLOS,window.ILLOS_OVERRIDE);
 document.getElementById('warmupBox').innerHTML = WARMUP.map(w=>`
   <div class="wb">
     <h4>${esc(w.name)}</h4>
