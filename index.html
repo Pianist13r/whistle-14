@@ -806,24 +806,24 @@ document.getElementById('resetBtn').addEventListener('click',()=>{ if(confirm('�
   const processed=[]; secDefs.forEach(s=>{ const det=wrapSec(document.getElementById(s.id),s.t); if(det){ if(!det.id)det.id=s.aid; processed.push({det:det,t:s.t}); } });
   if(drawerBody){ const toc=document.createElement('div'); toc.className='reftoc'; processed.forEach(p=>{ const c=document.createElement('button'); c.type='button'; c.className='tocchip'; c.textContent=p.t; c.addEventListener('click',()=>{ p.det.open=true; p.det.scrollIntoView({behavior:'smooth',block:'start'}); }); toc.appendChild(c); }); drawerBody.insertBefore(toc,drawerBody.firstChild); }
   const drawer=document.getElementById('drawer'), scrim=document.getElementById('scrim');
-  const openD=()=>{drawer.classList.add('open');scrim.classList.add('open');};
-  const closeD=()=>{drawer.classList.remove('open');scrim.classList.remove('open');};
+  let lastFocus=null; const openD=()=>{lastFocus=document.activeElement;drawer.classList.add('open');scrim.classList.add('open');document.body.style.overflow='hidden';if(rfb){rfb.classList.add('on');rfb.setAttribute('aria-expanded','true');}var c=document.getElementById('drawerClose');if(c)c.focus();};
+  const closeD=()=>{drawer.classList.remove('open');scrim.classList.remove('open');document.body.style.overflow='';if(rfb){rfb.classList.remove('on');rfb.setAttribute('aria-expanded','false');}if(lastFocus&&lastFocus.focus)lastFocus.focus();};
   const rfb=document.getElementById('refBtn'); if(rfb) rfb.addEventListener('click',openD);
   const dcl=document.getElementById('drawerClose'); if(dcl) dcl.addEventListener('click',closeD);
   if(scrim) scrim.addEventListener('click',closeD);
   const topbar=document.querySelector('.topbar .inner'), camBtn=document.getElementById('camBtn'), syncbar=document.querySelector('.syncbar');
   const modal=document.createElement('div'); modal.className='modal-wrap'; modal.id='syncModal'; modal.hidden=true;
-  modal.innerHTML='<div class="modal" role="dialog" aria-label="Синхронизация"><div class="modal-head"><span class="green">🔄</span> Синхронизация<button class="modal-close" id="syncModalClose" type="button" aria-label="Закрыть">✕</button></div><div class="modal-body" id="syncModalBody"></div></div>';
+  modal.innerHTML='<div class="modal" role="dialog" aria-modal="true" aria-label="Синхронизация"><div class="modal-head"><span class="green">🔄</span> Синхронизация<button class="modal-close" id="syncModalClose" type="button" aria-label="Закрыть">✕</button></div><div class="modal-body" id="syncModalBody"></div></div>';
   document.body.appendChild(modal);
   const mbody=modal.querySelector('#syncModalBody');
   if(syncbar&&mbody) mbody.appendChild(syncbar);
   const why=document.createElement('div'); why.className='sync-why'; why.innerHTML='💡 <b>Лучше нажми «🎲 Сгенерировать»</b>, а не придумывай код сам. Сгенерированный код длинный, уникальный и проверяется на занятость. Короткий придуманный код кто-то другой может случайно ввести такой же — и ваши прогрессы перемешаются. С генерацией это исключено.'; if(mbody) mbody.appendChild(why);
   const sbtn=document.createElement('button'); sbtn.className='ttbtn'; sbtn.id='syncTopBtn'; sbtn.type='button'; sbtn.innerHTML='🔄<span class="rlbl"> Синхр.</span>'; if(topbar&&camBtn) topbar.insertBefore(sbtn,camBtn); else if(topbar) topbar.appendChild(sbtn);
-  const openS=()=>{modal.hidden=false;}; const closeS=()=>{modal.hidden=true;};
+  const openS=()=>{lastFocus=document.activeElement;modal.hidden=false;document.body.style.overflow='hidden';if(sbtn){sbtn.classList.add('on');sbtn.setAttribute('aria-expanded','true');}var c=modal.querySelector('#syncModalClose');if(c)c.focus();}; const closeS=()=>{modal.hidden=true;document.body.style.overflow='';if(sbtn){sbtn.classList.remove('on');sbtn.setAttribute('aria-expanded','false');}if(lastFocus&&lastFocus.focus)lastFocus.focus();};
   sbtn.addEventListener('click',openS); modal.querySelector('#syncModalClose').addEventListener('click',closeS); modal.addEventListener('click',e=>{ if(e.target===modal)closeS(); });
   window.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeD();closeS();} });
   const camWrap=document.getElementById('camWrap'), camVideo=document.getElementById('camVideo'), camBar=document.getElementById('camBar');
-  if(camBar){ const hint=document.createElement('span'); hint.className='cam-hint'; hint.textContent='≡ тащи за верх · угол = размер'; camBar.insertBefore(hint,camBar.firstChild); } if(camWrap){ const grip=document.createElement('span'); grip.className='cam-grip'; camWrap.appendChild(grip); }
+  if(camBar){ const hint=document.createElement('span'); hint.className='cam-hint'; hint.textContent='≡ тащи за верх · угол = размер'; camBar.insertBefore(hint,camBar.firstChild); } if(camWrap){ const grip=document.createElement('span'); grip.className='cam-grip'; camWrap.appendChild(grip); let rez=false,rx=0,ry=0,rw=0,rh=0; const rstart=(x,y)=>{rez=true;const r=camWrap.getBoundingClientRect();rx=x;ry=y;rw=r.width;rh=r.height;camWrap.style.aspectRatio='auto';camWrap.style.right='auto';camWrap.style.bottom='auto';camWrap.style.left=r.left+'px';camWrap.style.top=r.top+'px';}; const rmove=(x,y)=>{if(!rez)return;camWrap.style.width=Math.max(120,Math.min(innerWidth*0.96,rw+(x-rx)))+'px';camWrap.style.height=Math.max(96,Math.min(innerHeight*0.88,rh+(y-ry)))+'px';}; grip.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();rstart(e.clientX,e.clientY);}); grip.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();const t=e.touches[0];rstart(t.clientX,t.clientY);},{passive:false}); addEventListener('mousemove',e=>rmove(e.clientX,e.clientY)); addEventListener('touchmove',e=>{if(rez){e.preventDefault();const t=e.touches[0];rmove(t.clientX,t.clientY);}},{passive:false}); addEventListener('mouseup',()=>rez=false); addEventListener('touchend',()=>rez=false); }
   let camStream=null;
   async function camOn(){ try{ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false}); camVideo.srcObject=camStream; camWrap.hidden=false; camBtn.classList.add('on'); }catch(e){ alert('Камера недоступна: '+(e.message||e)); } }
   function camOff(){ if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;} camVideo.srcObject=null; camWrap.hidden=true; camBtn.classList.remove('on'); }
@@ -862,7 +862,7 @@ document.getElementById('resetBtn').addEventListener('click',()=>{ if(confirm('�
     wire(box,n);
   };
   function wire(box,n){ const btn=box.querySelector('.rec-btn'), tEl=box.querySelector('.rec-time'), takesEl=box.querySelector('.rec-takes');
-    let takes=[],rec=false,mr=null,chunks=[],timer=null,secs=0,stream=null;
+    let takes=[],rec=false,mr=null,chunks=[],timer=null,secs=0,stream=null,busy=false;
     function render(){ takesEl.innerHTML=''; if(!takes.length){ takesEl.innerHTML='<div class="tlbl" style="opacity:.65">Записей пока нет'+(recUrl(n)?'':' · для облака включи код синхронизации')+'.</div>'; return; }
       takes.slice().reverse().forEach(tk=>{ const row=document.createElement('div'); row.className='take'; const lab=document.createElement('span'); lab.className='tlbl'; lab.textContent=tk.label||''; row.appendChild(lab);
         const au=document.createElement('audio'); au.controls=true; au.preload='none'; au.src=tk.data; row.appendChild(au);
@@ -871,24 +871,64 @@ document.getElementById('resetBtn').addEventListener('click',()=>{ if(confirm('�
         takesEl.appendChild(row); }); }
     loadTakes(n).then(a=>{takes=a||[];render();});
     btn.addEventListener('click',async()=>{
-      if(rec){ if(mr&&mr.state!=='inactive')mr.stop(); return; }
+      if(rec){ if(mr&&mr.state!=='inactive')mr.stop(); return; } if(busy)return;
       if(!recUrl(n)){ if(!confirm('Код синхронизации не включён — запись не сохранится в облаке. Записать сейчас (послушать/скачать локально)?'))return; }
-      try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ alert('Нет доступа к микрофону: '+(e.message||e)); return; }
+      busy=true; btn.innerHTML='<span class="dot"></span>микрофон…'; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ busy=false; btn.innerHTML='<span class="dot"></span>Записать'; alert('Нет доступа к микрофону: '+(e.message||e)); return; }
       chunks=[]; let m=''; if(window.MediaRecorder){ if(MediaRecorder.isTypeSupported('audio/webm'))m='audio/webm'; else if(MediaRecorder.isTypeSupported('audio/mp4'))m='audio/mp4'; }
       try{ mr=new MediaRecorder(stream,m?{mimeType:m}:undefined); }catch(e){ mr=new MediaRecorder(stream); }
       mr.ondataavailable=e=>{ if(e.data&&e.data.size)chunks.push(e.data); };
-      mr.onstop=async()=>{ stream.getTracks().forEach(t=>t.stop()); clearInterval(timer); rec=false; btn.classList.remove('stopping'); btn.innerHTML='<span class="dot"></span>Записать'; tEl.hidden=true;
+      mr.onstop=async()=>{ stream.getTracks().forEach(t=>t.stop()); clearInterval(timer); rec=false; btn.classList.remove('stopping'); btn.innerHTML='<span class="dot"></span>обрабатываю…'; btn.disabled=true; busy=true; tEl.hidden=true;
         try{ const raw=new Blob(chunks,{type:(mr&&mr.mimeType)||'audio/webm'}); const wav=await blobToWav(raw,16000); const data=await b64(wav);
           const tk={id:Date.now().toString(36),ts:Date.now(),dur:secs,label:'День '+n+' · '+fmt(secs),data};
           takes.push(tk); if(takes.length>3)takes=takes.slice(-3); await saveTakes(n,takes); render();
-        }catch(e){ alert('Не удалось обработать запись: '+(e.message||e)); }
+        }catch(e){ alert('Не удалось обработать запись: '+(e.message||e)); } btn.disabled=false; busy=false; btn.innerHTML='<span class="dot"></span>Записать';
       };
-      mr.start(); rec=true; secs=0; tEl.hidden=false; tEl.textContent='0:00'; btn.classList.add('stopping'); btn.innerHTML='<span class="dot"></span>Стоп';
+      mr.start(); busy=false; rec=true; secs=0; tEl.hidden=false; tEl.textContent='0:00'; btn.classList.add('stopping'); btn.innerHTML='<span class="dot"></span>Стоп';
       timer=setInterval(()=>{ secs++; tEl.textContent=fmt(secs); if(secs>=25){ if(mr&&mr.state!=='inactive')mr.stop(); } },1000);
     });
   }
   if(typeof curDay!=='undefined') window.mountRecorder(curDay);
 })();
 </script>
+<style id="polish">
+:root{--ink-faint:#8a9da5}
+a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible,.dn:focus-visible,[tabindex]:focus-visible,.tocchip:focus-visible,.modal-close:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:8px}
+.dn:focus-visible{box-shadow:0 0 0 3px rgba(155,232,79,.4)}
+.illo svg{background:#16212a}
+.qs-btn:active,.ttbtn:active,#syncBtn:active,.genBtn:active,.miniBtn:active,.dayflip button:active:not(:disabled),.rec-btn:active,.dn:active,.drawer-close:active,.modal-close:active,.reset:active,.tocchip:active{transform:translateY(1px) scale(.985)}
+.qs-btn:active,.dayflip .nextbtn:active{transform:scale(.985)}
+.rec-btn{transition:filter .15s,background .15s}
+.rec-btn:hover{filter:brightness(1.08)}
+.rec-btn.stopping:hover{background:#27333b}
+#syncBtn,.miniBtn,.genBtn{transition:filter .15s,background .15s,color .15s}
+.modal-close:hover{border-color:var(--rec);color:var(--rec)}
+.cam{resize:none}
+.cam-grip{pointer-events:auto;touch-action:none;z-index:3;cursor:nwse-resize}
+.bar>i{background-size:200% 100%;animation:portalflow 7s linear infinite}
+@keyframes portalflow{to{background-position:-200% 0}}
+html,body{max-width:100%;overflow-x:hidden}
+body{overflow-wrap:break-word}
+.topbar .inner{min-width:0}
+.bar{min-width:0}
+@media(max-width:600px){ .rlbl{display:none} .ttbtn{padding:.42rem .55rem} }
+@media(max-width:560px){
+  .dn{width:40px;height:40px;font-size:.92rem}
+  .cam{width:min(200px,52vw)}
+  .cam-bar button{width:32px;height:32px}
+  .drawer-close,.modal-close{width:44px;height:44px}
+  header.hero{display:flex;flex-direction:column}
+  .hero-art{position:relative;height:44vw;inset:auto}
+  .hero-art::after{background:linear-gradient(180deg,rgba(10,16,20,.05),rgba(10,16,20,.5) 62%,#0e1317)}
+  .hero-txt{max-width:100%;margin-left:0;padding-top:1rem}
+}
+@media(prefers-reduced-motion:reduce){
+  *{scroll-behavior:auto!important}
+  .day.active{animation:none}
+  .checklist input:checked + .cbox{animation:none}
+  .rec-btn.stopping .dot{animation:none}
+  .bar>i{animation:none}
+  .drawer{transition:none}
+}
+</style>
 </body>
 </html>
